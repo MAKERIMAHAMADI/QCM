@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QCM Premium & Gamifié - Informatique & VBA</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
+        :root {
+            --primary: #475569;
+            --primary-dark: #334155;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            position: relative;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-weight: 900;
+            color: var(--primary-dark);
+            margin-bottom: 5px;
+        }
+
+        /* --- Gamification HUD (Head-Up Display) --- */
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+            border: 2px solid #e2e8f0;
+        }
+
+        .score-box {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--accent);
+        }
+
+        .combo-box {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary);
+            transition: all 0.3s;
+        }
+
+        .combo-active {
+            color: var(--warning);
+            text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            transform: scale(1.1);
+        }
+
+        /* --- Progress Bar --- */
+        .progress-bar-container {
+            width: 100%;
+            background-color: #e2e8f0;
+            border-radius: 20px;
+            height: 16px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            border-radius: 20px;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+            animation: shimmer 2s infinite;
+        }
+
+        /* --- Quiz Cards --- */
+        .quiz-card {
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            padding: 35px;
+            margin-bottom: 20px;
+            display: none;
+            border: 1px solid #f1f5f9;
+        }
+
+        .quiz-card.active {
+            display: block;
+            animation: slideInBottom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .question-number {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            margin-bottom: 15px;
+            display: inline-block;
+            background: #f1f5f9;
+            padding: 5px 12px;
+            border-radius: 8px;
+        }
+
+        .question-text {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 25px;
+            color: var(--primary-dark);
+            line-height: 1.4;
+        }
+
+        /* --- Options --- */
+        .options-list { list-style-type: none; padding: 0; margin: 0; }
+
+        .option-item {
+            background-color: #f8fafc;
+            border: 3px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1.1rem;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .option-item:hover:not(.disabled) {
+            transform: translateY(-3px) scale(1.01);
+            border-color: var(--accent);
+            background-color: #eef2ff;
+            box-shadow: 0 8px 15px rgba(99, 102, 241, 0.15);
+        }
+
+        .option-item:active:not(.disabled) { transform: translateY(1px); }
+
+        .option-item.disabled { pointer-events: none; opacity: 0.7; }
+
+        .option-item.correct {
+            background-color: #ecfdf5;
+            border-color: var(--success);
+            color: #065f46;
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .option-item.incorrect {
+            background-color: #fef2f2;
+            border-color: var(--danger);
+            color: #991b1b;
+        }
+
+        /* --- Feedback & Explications --- */
+        .feedback-box {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            animation: slideDown 0.4s ease-out;
+        }
+
+        .feedback-box.correct { background-color: #ecfdf5; border-left: 6px solid var(--success); }
+        .feedback-box.incorrect { background-color: #fef2f2; border-left: 6px solid var(--danger); }
+
+        /* --- Boutons --- */
+        .controls { display: flex; justify-content: flex-end; margin-top: 25px; }
+
+        .btn-action {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            font-family: inherit;
+        }
+
+        .btn-next {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: white;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+
+        .btn-next:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3); }
+
+        /* --- Animations CSS --- */
+        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        @keyframes slideInBottom { 0% { opacity: 0; transform: translateY(40px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { 0% { opacity: 0; transform: translateY(-20px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.5); } 70% { box-shadow: 0 0 0 15px rgba(99,102,241,0); } 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); } }
+        
+        .shake-animation { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translateX(-2px); }
+            20%, 80% { transform: translateX(4px); }
+            30%, 50%, 70% { transform: translateX(-6px); }
+            40%, 60% { transform: translateX(6px); }
+        }
+
+        /* --- Éléments JS Dynamiques (Confettis & Score flottant) --- */
+        .floating-score {
+            position: fixed;
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--success);
+            text-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            pointer-events: none;
+            z-index: 9999;
+            animation: floatUpFade 1.2s ease-out forwards;
+        }
+
+        @keyframes floatUpFade {
+            0% { opacity: 1; transform: translateY(0) scale(0.5); }
+            20% { transform: translateY(-20px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1); }
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px; height: 10px;
+            pointer-events: none;
+            z-index: 9998;
+            animation: fall linear forwards;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+        
+        #result-screen { display: none; text-align: center; padding: 40px; background: var(--card-bg); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .final-score { font-size: 4rem; color: var(--accent); font-weight: 900; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Entraînement Examen : Grand QCM</h1>
+        <p style="color: #64748b; margin-top: 0;">80 Questions de Révision — Système Gamifié</p>
+    </header>
+
+    <div class="hud">
+        <div class="score-box">⭐ <span id="score-display">0</span> pts</div>
+        <div class="combo-box" id="combo-display">🔥 Combo: 0</div>
+    </div>
+
+    <div class="progress-bar-container">
+        <div class="progress-bar" id="progress"></div>
+    </div>
+
+    <div id="quiz-zone"></div>
+
+    <div class="controls" id="quiz-controls">
+        <button class="btn-action btn-next" id="next-btn" onclick="nextQuestion()">Continuer ➔</button>
+        <button class="btn-action btn-next" id="submit-btn" onclick="showResults()" style="background: var(--success); display: none;">Voir mes résultats 🏆</button>
+    </div>
+
+    <div id="result-screen">
+        <h2>🎉 Entraînement Terminé ! 🎉</h2>
+        <div class="final-score" id="final-score-display">0</div>
+        <p id="feedback-text" style="font-size: 1.2rem; font-weight: bold; color: var(--primary-dark);"></p>
+        <p id="stats-text" style="margin-bottom: 30px; color: #64748b; line-height: 1.6;"></p>
+        <button class="btn-action" style="background: var(--accent); color: white;" onclick="window.location.reload()">Rejouer & Battre mon score</button>
+    </div>
+</div>
+
+<script>
+    // La base de données complète des 80 questions réparties par sections
+    const questions = [
+        // PARTIE 1 : Excel - Fonctions Logiques et de Recherche
+        { q: "Quelle est la syntaxe correcte de la fonction SI dans Excel ?", o: ["=SI(valeur_si_vrai; valeur_si_faux; condition)", "=SI(condition; valeur_si_vrai; valeur_si_faux)", "=SI(condition; valeur_si_faux; valeur_si_vrai)", "=SI(condition = vrai; valeur)"], a: 1, e: "La syntaxe universelle du SI est =SI(condition; valeur_si_vrai; valeur_si_faux)." },
+        { q: "Si la cellule B2 contains 8, quel sera le résultat de `=SI(B2>=10;\"Admis\";\"Ajourné\")` ?", o: ["Admis", "Ajourné", "VRAI", "FAUX"], a: 1, e: "B2 contenant 8, la condition 8>=10 est fausse, Excel affiche donc la valeur_si_faux : 'Ajourné'." },
+        { q: "Quelle fonction permet de vérifier que plusieurs conditions sont TOUTES vraies en même temps ?", o: ["OU()", "SI()", "ET()", "NON()"], a: 2, e: "La fonction ET() vérifie la simultanéité des conditions. Elles doivent toutes être vraies pour renvoyer VRAI." },
+        { q: "Que renvoie la fonction `=ET(B2>=12; C2<=5)` si B2 vaut 14 et C2 vaut 4 ?", o: ["Éligible", "Non Éligible", "VRAI", "FAUX"], a: 2, e: "14>=12 est VRAI et 4<=5 est VRAI. Les deux conditions étant remplies, ET() renvoie VRAI." },
+        { q: "Quelle fonction renvoie VRAI si au moins UNE seule des conditions testées est vraie ?", o: ["ET()", "OU()", "SI()", "SOMME.SI()"], a: 1, e: "La fonction OU() requiert qu'au moins une seule condition soit vraie pour valider le test." },
+        { q: "Pour une bourse, un étudiant doit avoir une moyenne >=12 ET un nombre d'absences <=5. Quelle est la formule combinée exacte ?", o: ["=SI(OU(B2>=12; C2<=5);\"Eligible\";\"Non Eligible\")", "=SI(ET(B2>=12; C2<=5);\"Eligible\";\"Non Eligible\")", "=SI(B2>=12; ET(C2<=5);\"Eligible\";\"Non Eligible\")", "=ET(SI(B2>=12);\"Eligible\";\"Non Eligible\")"], a: 1, e: "On imbrique la fonction ET() comme condition principale à l'intérieur de la fonction SI()." },
+        { q: "Dans Excel, une base de données est définie dans ce cours comme :", o: ["Un logiciel de programmation indépendant", "Un ensemble organisé d'informations permettant de stocker, rechercher et exploiter des données", "Une formule mathématique de calcul matriciel", "Un onglet caché du ruban"], a: 1, e: "Définition exacte du cours : un ensemble organisé d'informations pour stocker, rechercher et exploiter des données." },
+        { q: "Que signifie la lettre 'V' dans le nom de la fonction RECHERCHEV ?", o: ["Valeur", "Vrai", "Verticale", "Variable"], a: 2, e: "'V' signifie 'Verticale'. Elle cherche une valeur dans la première colonne d'un tableau disposé verticalement." },
+        { q: "Quel est le premier argument de la fonction RECHERCHEV ?", o: ["La table_matrice", "Le no_index_col", "La valeur_cherchée", "La [valeur_proche]"], a: 2, e: "Le tout premier argument requis est la valeur_cherchée." },
+        { q: "Dans la fonction RECHERCHEV, où doit obligatoirement se situer la valeur cherchée dans la table matrice ?", o: ["Dans la dernière colonne", "Dans la première ligne", "Dans la première colonne", "N'importe où"], a: 2, e: "Contrainte technique majeure de RECHERCHEV : la valeur recherchée doit obligatoirement figurer dans la première colonne de la plage sélectionnée." },
+        { q: "Quel argument devez-vous passer en quatrième position dans RECHERCHEV pour obtenir une recherche exacte ?", o: ["VRAI", "FAUX", "1", "Le nom de la colonne"], a: 1, e: "On utilise l'argument logique FAUX pour exiger une correspondance exacte." },
+        { q: "Dans RECHERCHEV, que se passe-t-il si le quatrième argument est défini sur VRAI ?", o: ["Excel renvoie une erreur de syntaxe", "Excel effectue une recherche approximative", "Excel n'accepte que du texte", "La fonction s'arrête immédiatement"], a: 1, e: "Mettre VRAI permet à Excel d'effectuer une recherche approximative (par exemple pour des tranches de valeurs)." },
+        { q: "Quelle est la syntaxe correcte de la fonction RECHERCHEX() ?", o: ["=RECHERCHEX(valeur_cherchée; no_index_col; tableau_retour)", "=RECHERCHEX(valeur_cherchée; tableau_recherche; tableau_retour)", "=RECHERCHEX(tableau_recherche; tableau_retour; valeur_cherchée)", "=RECHERCHEX(valeur_cherchée; table_matrice; no_col)"], a: 1, e: "Syntaxe moderne de RECHERCHEX : =RECHERCHEX(valeur_cherchée; tableau_recherche; tableau_retour)." },
+        { q: "Que fait précisément `=RECHERCHEX(A2; B2:B10; C2:C10)` ?", o: ["Cherche la valeur de A2 dans C2:C10 et retourne la valeur de B2:B10", "Cherche la valeur de A2 dans B2:B10 et retourne la valeur correspondante de C2:C10", "Fusionne la plage B2:B10 avec C2:C10", "Compte le nombre de fois où A2 apparaît"], a: 1, e: "Elle cherche la valeur A2 dans le premier vecteur (tableau_recherche) et extrait la valeur équivalente du second (tableau_retour)." },
+        { q: "Quelle fonction calcule la moyenne arithmétique d'un ensemble de nombres ?", o: ["=MOYENNE.SI()", "=SOMME()/NB()", "=MOYENNE()", "Toutes les réponses"], a: 2, e: "La fonction native propre et standard demandée est =MOYENNE(plage)." },
+        { q: "Quelle fonction permet d'extraire la plus grande valeur d'une série de données ?", o: ["MIN()", "MAX()", "GRANDE.VALEUR()", "NB()"], a: 1, e: "La fonction MAX() extrait la plus grande valeur numérique d'une série." },
+        { q: "Que fait précisément la fonction NB() ?", o: ["Elle compte toutes les cellules vides d'une plage", "Elle compte uniquement les cellules contenant des nombres", "Elle compte toutes les cellules contenant du texte ou des nombres", "Elle calcule la somme des nombres"], a: 1, e: "NB() ignore le texte et les cellules vides, elle ne comptabilise que les cellules contenant des valeurs numériques." },
+        { q: "Quelle est la syntaxe de la fonction NB.SI() ?", o: ["=NB.SI(critère; plage)", "=NB.SI(plage; critère)", "=NB.SI(plage; condition; valeur_vrai)", "=NB.SI(valeur)"], a: 1, e: "La syntaxe est =NB.SI(plage; critère)." },
+        { q: "Que signifie littéralement l'usage de la fonction NB.SI() ?", o: ["Calculer le nombre de cellules multiplié par le critère", "Compter selon une condition", "Remplacer une valeur par une autre si elle existe", "Diviser une plage par un critère"], a: 1, e: "Définition littérale du cours : NB.SI signifie 'Compter selon une condition'." },
+        { q: "Quelle est la syntaxe exacte de la fonction MOYENNE.SI() ?", o: ["=MOYENNE.SI(plage; critère)", "=MOYENNE.SI(plage_critère; critère; plage_moyenne)", "=MOYENNE.SI(plage_moyenne; critère; plage_critère)", "=MOYENNE.SI(critère; plage_moyenne)"], a: 1, e: "La syntaxe complète est =MOYENNE.SI(plage_critère; critère; plage_moyenne)." },
+        { q: "Si vous voulez calculer la moyenne des notes uniquement pour la filière 'Informatique', quel argument correspond à 'Informatique' dans MOYENNE.SI ?", o: ["La plage_critère", "Le critère", "La plage_moyenne", "Aucun de ces arguments"], a: 1, e: "'Informatique' représente la valeur cible recherchée, c'est-à-dire le 'critère'." },
+        { q: "Quel est le rôle du troisième argument de la fonction RECHERCHEV (no_index_col) ?", o: ["Spécifier le nombre total de colonnes de la table", "Indiquer le numéro de la colonne qui contient l'information à retourner", "Déterminer la ligne de départ", "Valider si la recherche est exacte ou non"], a: 1, e: "Cet index numérique désigne le numéro de colonne de la table matrice dont on veut extraire l'information." },
+        { q: "Quelle fonction est à privilégier pour compter le nombre d'étudiants ayant une note supérieure ou égale à 10 ?", o: ["=NB()", "=NB.SI()", "=SI()", "=MOYENNE.SI()"], a: 1, e: "On cherche à compter sous une condition spécifique, l'outil adapté est donc NB.SI()." },
+        { q: "Que renvoie la formule `=OU(5>10; 2=2)` ?", o: ["VRAI", "FAUX", "#VALEUR!", "2"], a: 0, e: "Bien que 5>10 soit faux, 2=2 est vrai. La fonction OU() a besoin d'au moins une condition vraie pour renvoyer VRAI." },
+        { q: "Dans un tableau Excel, si vous écrivez `=ET(10>5; 3<=1)`, qu'affiche Excel ?", o: ["VRAI", "FAUX", "0", "Éligible"], a: 1, e: "La fonction ET() exige que toutes les conditions soient vraies. Or, 3<=1 est faux, donc le résultat global est FAUX." },
+
+        // PARTIE 2 : Excel - Fonctions de Texte
+        { q: "Quels sont les deux moyens équivalents pour fusionner du texte en Excel selon le cours ?", o: ["Le symbole + et la fonction CONCAT()", "Le symbole & et la fonction CONCAT()", "Le symbole $ et la fonction TEXTE()", "Les fonctions RECHERCHEV() et STXT()"], a: 1, e: "Le cours mentionne deux syntaxes équivalentes pour la fusion de chaînes : l'opérateur & ou la fonction =CONCAT()." },
+        { q: "Quelle est la syntaxe pour fusionner le contenu de A2 et B2 en insérant un espace au milieu ?", o: ["=CONCAT(A2; B2)", "=A2 & B2", "=A2 & \" \" & B2", "=A2 + \" \" + B2"], a: 2, e: "Pour insérer un espace statique entre deux variables, il faut le placer entre guimelets doubles et lier le tout avec l'ampersand &." },
+        { q: "Que fait la fonction GAUCHE() ?", o: ["Elle déplace le texte vers la gauche de la cellule", "Elle extrait les caractères situés au début du texte", "Elle supprime les espaces situés à gauche", "Elle compte les caractères depuis la gauche"], a: 1, e: "Elle extrait un nombre défini de caractères en partant du début (la gauche) d'un texte." },
+        { q: "Quelle est la syntaxe exacte de la fonction DROITE() ?", o: ["=DROITE(nombre_caracteres; texte)", "=DROITE(texte; nombre_caracteres)", "=DROITE(texte)", "=DROITE(plage; critère)"], a: 1, e: "La syntaxe attendue est =DROITE(texte; nombre_caractères)." },
+        { q: "Quelle fonction utiliser pour extraire une partie du texte située au milieu d'une chaîne de caractères ?", o: ["GAUCHE()", "DROITE()", "STXT()", "CONCAT()"], a: 2, e: "STXT (Sous-Texte) sert à extraire une portion de texte à partir de n'importe quelle position centrale." },
+        { q: "Quelle est la syntaxe de la fonction STXT() ?", o: ["=STXT(texte; nombre_caractères)", "=STXT(texte; position_depart; nombre_caractères)", "=STXT(position_depart; nombre_caractères; texte)", "=STXT(texte; plage)"], a: 1, e: "La bonne syntaxe est =STXT(texte; position_départ; nombre_caractères)." },
+        { q: "Quel est le résultat de la formule `=NBCAR(\"informatique\")` ?", o: ["11", "12", "10", "informatique"], a: 1, e: "Le mot 'informatique' comporte exactement 12 lettres. NBCAR compte chaque lettre." },
+        { q: "Quelle fonction permet de donner des lettres capitales à tout le texte d'une cellule ?", o: ["MINUSCULE()", "MAJUSCULE()", "NOMPROPRE()", "TEXTE()"], a: 1, e: "La fonction s'appelle légitimement =MAJUSCULE()." },
+        { q: "Si la cellule A2 contient 'VBA', que renvoie `=MINUSCULE(A2)` ?", o: ["VBA", "vba", "Vba", "#VALEUR!"], a: 1, e: "La fonction =MINUSCULE() convertit l'intégralité des lettres en minuscules, donnant 'vba'." },
+        { q: "Que fait exactement la fonction NBCAR() ?", o: ["Elle convertit les nombres en caractères", "Elle compte le nombre de caractères dans une chaîne de texte", "Elle vérifie si le texte est en majuscule", "Elle supprime les caractères spéciaux"], a: 1, e: "NBCAR signifie 'Nombre de caractères'. Elle renvoie la longueur textuelle brute d'une cellule." },
+
+        // PARTIE 3 : Outils Avancés de Word
+        { q: "Qu'est-ce qu'un 'Style' dans Microsoft Word ?", o: ["Une manière personnelle d'écrire un texte", "Un ensemble de mises en forme prédéfinies appliquées à un texte", "Un outil exclusif pour insérer des images", "Un dictionnaire de synonymes"], a: 1, e: "Un style est un package de configurations de mise en forme appliquées en un clic pour uniformiser un document." },
+        { q: "Quel élément NE fait PAS partie des modifications manuelles évitées grâce à l'utilisation d'un style standard ?", o: ["La police et la taille", "La couleur et l'alignement", "L'insertion d'un tableau de données Excel", "Toutes les réponses précédentes"], a: 2, e: "Les styles gèrent l'esthétique du texte (police, couleur, taille), mais n'interviennent pas dans l'importation de fichiers externes comme des tableaux Excel." },
+        { q: "Quel type de style est recommandé pour structurer les chapitres principaux d'un document ?", o: ["Titre 2", "Titre 1", "Titre 3", "Sous-titre"], a: 1, e: "Le style 'Titre 1' est hiérarchiquement réservé aux titres majeurs (Chapitres)." },
+        { q: "Dans la structure des styles sous Word, le style 'Titre 3' est généralement utilisé pour :", o: ["Les chapitres principaux", "Les sections", "Les sous-sections (Exemple : 1.1.1)", "La page de garde"], a: 2, e: "'Titre 3' représente le troisième niveau de profondeur, parfait pour les sous-sections." },
+        { q: "Quelle est la condition indispensable pour générer une table des matières automatique sous Word ?", o: ["Avoir inséré au moins 10 images", "Avoir appliqué des styles de titres (Titre 1, Titre 2...) au texte", "Avoir écrit le document en majuscules", "Utiliser une macro VBA"], a: 1, e: "Word utilise l'arborescence des 'Styles de titres' pour repérer l'emplacement des futurs éléments de la table des matières." },
+        { q: "Quel est le chemin d'accès dans le ruban Word pour insérer une table des matières automatique ?", o: ["Accueil -> Table des matières", "Insertion -> Table des matières", "Références -> Table des matières", "Affichage -> Table des matières"], a: 2, e: "L'outil se trouve sous l'onglet 'Références'." },
+        { q: "Où se situent respectivement l'en-tête et le pied de page dans un document Word ?", o: ["À gauche et à droite de chaque page", "En haut et en bas de chaque page", "Au début et à la fin du document uniquement", "Au milieu de la page"], a: 1, e: "L'en-tête est situé dans la marge supérieure (en haut), tandis que le pied de page occupe la marge inférieure (en bas)." },
+        { q: "Parmi les informations suivantes, laquelle est typiquement placée en en-tête d'un document universitaire ?", o: ["Le numéro de page", "La date de fin", "Le nom de l'université ou du cours", "Le nom de l'éditeur de logiciel"], a: 2, e: "L'en-tête accueille généralement les informations globales de contexte comme le nom de l'établissement ou de la matière." },
+        { q: "Quel est le principe fondamental du publipostage (Mailing) ?", o: ["Envoyer un e-mail manuellement à chaque étudiant", "Fusionner une base de données Excel avec un document modèle Word", "Convertir un fichier Word en PDF anonyme", "Créer des graphiques dynamiques sur Word"], a: 1, e: "Le publipostage permet de générer des documents personnalisés à grande échelle en liant une source Excel à un modèle Word." },
+        { q: "Quelle est la quatrième étape du publipostage parmi les propositions suivantes ?", o: ["Créer la base Excel", "Créer le modèle Word", "Insérer les champs (Exemple : <<Nom>>)", "Terminer et fusionner"], a: 2, e: "L'étape 4 du processus explicité dans le cours consiste à intégrer les balises dynamiques appelées 'champs de fusion'." },
+
+        // PARTIE 4 : Découverte et Enregistrement des Macros
+        { q: "Qu'est-ce qu'une macro dans l'environnement Microsoft Office ?", o: ["Un virus informatique destructeur", "Une suite d'actions enregistrées qui peut être rejouée automatiquement", "Un type de fichier image haute définition", "Un outil de calcul pour grand écran"], a: 1, e: "Une macro est un ensemble d'instructions mémorisées permettant d'automatiser des tâches répétitives." },
+        { q: "Quel est l'un des principaux avantages de l'utilisation des macros ?", o: ["Augmenter la taille des fichiers", "Gain de temps et réduction des erreurs", "Changer la langue du clavier automatiquement", "Rendre l'ordinateur plus puissant"], a: 1, e: "L'automatisation offre un gain de temps massif et supprime le risque d'oublis ou d'erreurs humaines." },
+        { q: "Quel onglet du ruban Excel doit obligatoirement être activé pour travailler sur les macros et le code VBA ?", o: ["Accueil", "Données", "Développeur", "Affichage"], a: 2, e: "L'onglet 'Développeur' est le centre de contrôle pour tout ce qui concerne la programmation et le VBA." },
+        { q: "Dans les options d'Excel, où trouve-t-on la case à cocher 'Développeur' ?", o: ["Formules -> Calculs", "Personnaliser le ruban -> Onglets principaux", "Barre d'outils Accès rapide", "Compléments COM"], a: 1, e: "Chemin d'activation : Fichier > Options > Personnaliser le ruban > Cocher 'Développeur'." },
+        { q: "À quoi sert le bouton 'Visual Basic' dans l'onglet Développeur ?", o: ["À fermer Excel proprement", "À ouvrir l'éditeur VBA pour écrire ou modifier du code", "À insérer un graphique 3D", "À exécuter une macro à l'envers"], a: 1, e: "Ce bouton ouvre l'environnement de développement VBE (Visual Basic Editor) où réside le code." },
+        { q: "L'enregistreur de macro fonctionne comme :", o: ["Un scanner de texte", "Une caméra qui observe vos actions et les transforme en code VBA", "Une calculatrice financière", "Un traducteur de langues étrangères"], a: 1, e: "Métaphore du cours : l'enregistreur capture chaque clic et frappe pour écrire automatiquement le code VBA correspondant." },
+        { q: "Quelle est la règle stricte concernant le nom d'une macro ?", o: ["Il doit obligatoirement contenir au moins deux espaces", "Il ne doit pas contenir d'espace et ne doit pas commencer par un chiffre", "Il doit être écrit en anglais et en majuscules", "Il doit faire moins de 5 caractères"], a: 1, e: "Les règles de syntaxe interdisent formellement les espaces, la plupart des caractères spéciaux et le démarrage par un chiffre." },
+        { q: "Quel est le nom de macro INCORRECT parmi les propositions suivantes ?", o: ["MiseEnFormeTableau", "CalculMoyenne", "1Macro", "NettoyerBase"], a: 2, e: "'1Macro' est invalide car il commence par un caractère numérique." },
+        { q: "Si vous enregistrez une macro dans le 'Classeur de macros personnelles', où sera-t-elle disponible ?", o: ["Uniquement dans le fichier actuel", "Dans un nouveau fichier uniquement", "Dans tous vos fichiers Excel", "Uniquement sur Internet"], a: 2, e: "Ce classeur spécial est chargé en arrière-plan à chaque ouverture d'Excel, rendant les macros accessibles globalement." },
+        { q: "Comment peut-on exécuter une macro déjà enregistrée ?", o: ["Via Développeur -> Macros -> Choisir la macro -> Exécuter", "En utilisant un raccourci clavier défini lors de la création", "Les propositions A et B sont correctes", "En double-cliquant sur la cellule A1"], a: 2, e: "Les macros peuvent être déclenchées soit par le menu Excel dédié, soit par un raccourci clavier personnalisé." },
+
+        // PARTIE 5 : Analyse et Modification de Code VBA
+        { q: "Par quel mot-clé commence toujours une procédure/macro simple en VBA et par quoi se termine-t-elle ?", o: ["Start / End", "Sub / End Sub", "Function / End Function", "Macro / End"], a: 1, e: "Une procédure de type macro s'ouvre par 'Sub' et se clôture obligatoirement par 'End Sub'." },
+        { q: "En VBA, quelle instruction permet de désigner la cellule A1 ?", o: ["Cellule(\"A1\")", "Range(\"A1\")", "A1.Select", "Box(\"A1\")"], a: 1, e: "L'objet Range(\"A1\") est la syntaxe standard en VBA pour référencer une cellule." },
+        { q: "Que fait la ligne de code `Selection.Font.Bold = True` ?", o: ["Elle efface le texte sélectionné", "Elle applique la mise en forme 'Gras' à la sélection", "Elle change la police de caractères en Arial", "Elle vérifie si le texte est écrit en grand"], a: 1, e: "La propriété .Font.Bold passée à True force le texte sélectionné à s'afficher en Gras." },
+        { q: "Quelle instruction affiche une boîte de dialogue avec un message à l'écran ?", o: ["InputBox", "MsgBox", "Print", "Alert"], a: 1, e: "MsgBox (Message Box) génère une fenêtre contextuelle pour afficher des informations." },
+        { q: "Comment se traduit en code VBA l'écriture du texte 'BIT' dans la cellule B2 ?", o: ["Range(\"A1\").Text = BIT", "Range(\"B2\").Value = \"BIT\"", "B2.Value = \"BIT\"", "Select.Range(\"B2\") = BIT"], a: 1, e: "La syntaxe rigoureuse est de modifier la propriété .Value de l'objet Range en y injectant une chaîne textuelle entre guillemets." },
+        { q: "Comment s'écrit la plage de cellules allant de A1 jusqu'à C1 en VBA ?", o: ["Range(\"A1-C1\")", "Range(\"A1:C1\")", "Range(\"A1 à C1\")", "Plage(A1..C1)"], a: 1, e: "Les limites de plages sont séparées par les deux-points, le tout entre guillemets : Range(\"A1:C1\")." },
+        { q: "Quel code permet de retirer l'attribut 'Gras' d'une cellule ?", o: ["Range(\"A1\").Font.Bold = False", "Range(\"A1\").Font.Bold = Empty", "Range(\"A1\").Font.Size = 0", "Range(\"A1\").Clear"], a: 0, e: "Passer l'attribut .Bold à False désactive le format Gras." },
+        { q: "En VBA, à quoi correspond le code couleur `RGB(255, 0, 0)` ?", o: ["Vert", "Bleu", "Rouge", "Noir"], a: 2, e: "Le système RGB (Red, Green, Blue) configuré à son maximum uniquement sur le premier canal donne du Rouge vif." },
+        { q: "Quelle ligne de code permet d'ajuster automatiquement la largeur des colonnes A à D ?", o: ["Columns(\"A:D\").Select", "Columns(\"A:D\").AutoFit", "Range(\"A:D\").Width = Auto", "Columns(\"A-D\").Ajuster"], a: 1, e: "La méthode .AutoFit ordonne à Excel d'adapter dynamiquement la largeur de la sélection de colonnes." },
+        { q: "Comment insère-t-on un commentaire (non exécuté par VBA) dans le code ?", o: ["En utilisant deux slashs : // Mon commentaire", "En mettant une apostrophe au début : ' Mon commentaire", "En utilisant des parenthèses et des étoiles : (*...*)", "En écrivant le mot COMMENTAIRE au début"], a: 1, e: "En VBA, l'apostrophe (') met toute la suite de la ligne au statut de commentaire." },
+
+        // PARTIE 6 : Boutons et Éléments de Formulaire
+        { q: "Quel est l'intérêt principal d'associer une macro à un bouton sur une feuille Excel ?", o: ["Empêcher la modification des formules", "Rendre l'exécution de la macro plus simple et ergonomique pour l'utilisateur", "Accélérer la vitesse de calcul d'un processeur", "Éviter d'avoir à enregistrer le classeur"], a: 1, e: "Un bouton graphique offre une interface utilisateur conviviale, évitant de devoir naviguer dans le code ou les rubans." },
+        { q: "Dans quelle catégorie de l'outil 'Insérer' (onglet Développeur) est-il recommandé de choisir le composant Bouton ?", o: ["Contrôles ActiveX", "Contrôles de formulaire", "Compléments Office", "Macro-commandes externes"], a: 1, e: "Les contrôles de formulaire sont plus simples à manipuler et fortement recommandés pour débuter par rapport aux contrôles ActiveX." },
+        { q: "Que se passe-t-il immédiatement après avoir dessiné un bouton de formulaire avec la souris sur Excel ?", o: ["Excel se ferme automatiquement", "Une fenêtre appelée 'Affecter une macro' s'ouvre pour l'associer à un script", "Le code VBA est supprimé", "Le bouton devient invisible"], a: 1, e: "Excel ouvre instantanément une invite pour lier graphiquement le bouton à une macro existante." },
+        { q: "Comment change-t-il le texte affiché par défaut (ex : 'Bouton 1') sur un bouton de formulaire ?", o: ["En double-cliquant sur la cellule d'à côté", "Clic droit sur le bouton -> Modifier le texte", "En modifiant la formule dans la barre de formule", "Ce texte n'est pas modifiable"], a: 1, e: "Un clic droit sur l'élément permet d'entrer en mode édition textuelle via l'option 'Modifier le texte'." },
+        { q: "Si vous désirez modifier la macro associée à un bouton existant, quelle manipulation effectuez-vous ?", o: ["Vous devez supprimer le bouton et le redessiner", "Clic droit sur le bouton -> Affecter une macro", "Double-clic sur l'onglet Développeur", "Appuyer sur ALT + F4"], a: 1, e: "Le menu contextuel (clic droit) permet de réaffecter ou modifier une macro à tout moment." },
+        { q: "Est-ce que le fait de supprimer un bouton sur la feuille Excel supprime également le code de la macro associée ?", o: ["Oui, tout est supprimé instantanément", "Non, la macro reste intacte dans le module VBA", "Oui, mais seulement si le fichier est enregistré", "Non, mais la macro devient inutilisable via le ruban"], a: 1, e: "Le bouton n'est qu'une passerelle visuelle. Le supprimer n'affecte en rien le code VBA sous-jacent hébergé dans le module." },
+        { q: "Pour déplacer un bouton sur la feuille Excel, il faut :", o: ["Faire un clic gauche simple et glisser", "Faire un clic droit sur le bouton pour le sélectionner, puis le déplacer", "Écrire une ligne de code Button.Move", "Masquer la colonne où il se trouve"], a: 1, e: "Un clic gauche exécutant la macro, il faut obligatoirement faire un clic droit pour attraper l'objet et pouvoir le déplacer." },
+
+        // PARTIE 7 : Algorithmique, Variables et Opérateurs
+        { q: "Quelle est la différence fondamentale entre un algorithme et un programme VBA ?", o: ["L'algorithme est payant, le programme VBA est gratuit", "L'algorithme décrit les étapes en langage simple ; le programme VBA traduit ces étapes en code", "L'algorithme s'exécute sur Word et le VBA sur Excel", "Il n'y a aucune différence, ce sont deux synonymes"], a: 1, e: "L'algorithme est une recette logique universelle écrite en langage naturel. Le programme est son implémentation codée." },
+        { q: "Quel mot-clé sert à déclarer formellement une variable en VBA ?", o: ["Var", "Dim", "Const", "Let"], a: 1, e: "Dim (Dimension) est le mot-clé obligatoire pour allouer un espace mémoire à une variable en VBA." },
+        { q: "Quel type de données est le plus approprié pour stocker un nom de famille comme 'Jean' ?", o: ["Integer", "Double", "String", "Boolean"], a: 2, e: "Le type String est spécifiquement dédié aux chaînes de caractères et textes." },
+        { q: "Quel type de données stocke uniquement les valeurs logiques VRAI (True) ou FAUX (False) ?", o: ["Variant", "Long", "Boolean", "Date"], a: 2, e: "Le type Boolean est l'indicateur binaire par excellence, ne tolérant que True ou False." },
+        { q: "Pour stocker des notes scolaires ou des moyennes générales (comme 14,5), quel type est préférable ?", o: ["Integer", "Double", "Long", "String"], a: 1, e: "Le type Double permet de gérer les nombres décimaux à virgule flottante, indispensables pour des notes précises." },
+        { q: "Quel symbole utilise-t-on en VBA pour concaténer (assembler) du texte et des variables ?", o: ["+", "&", "*", "#"], a: 1, e: "L'esperluette (&) est l'opérateur de concaténation par excellence en langage VBA." },
+        { q: "En VBA, quel opérateur arithmétique permet d'obtenir le reste d'une division entière (modulo) ?", o: ["/", "\\", "Mod", "^"], a: 2, e: "L'opérateur textuel Mod calcule le reste d'une division entière euclidienne." },
+        { q: "Que vaut la variable `Moyenne` suite à l'exécution de l'instruction `Moyenne = (10 + 12 + 14) / 3` ?", o: ["10", "12", "14", "36"], a: 1, e: "Les parenthèses sont prioritaires : (10 + 12 + 14) = 36. Puis 36 / 3 = 12." }
+    ];
+
+    let currentQuestionIndex = 0;
+    let userAnswers = new Array(questions.length).fill(null);
+    
+    // Variables de Gamification
+    let score = 0;
+    let currentStreak = 0;
+    let maxStreak = 0;
+    let correctAnswersCount = 0;
+
+    const basePoints = 100;
+
+    function buildQuiz() {
+        const quizZone = document.getElementById('quiz-zone');
+        quizZone.innerHTML = '';
+
+        questions.forEach((question, index) => {
+            const card = document.createElement('div');
+            card.className = `quiz-card ${index === 0 ? 'active' : ''}`;
+            card.id = `q-card-${index}`;
+
+            const qNumber = document.createElement('div');
+            qNumber.className = 'question-number';
+            qNumber.innerText = `Question ${index + 1} / ${questions.length}`;
+
+            const qText = document.createElement('div');
+            qText.className = 'question-text';
+            qText.innerText = question.q;
+
+            const optionsList = document.createElement('ul');
+            optionsList.className = 'options-list';
+
+            question.o.forEach((option, oIndex) => {
+                const optionItem = document.createElement('li');
+                optionItem.className = 'option-item';
+                optionItem.id = `opt-${index}-${oIndex}`;
+                optionItem.innerText = option;
+                optionItem.onclick = (e) => selectOption(index, oIndex, e);
+                optionsList.appendChild(optionItem);
+            });
+
+            const feedbackBox = document.createElement('div');
+            feedbackBox.className = 'feedback-box';
+            feedbackBox.id = `feedback-${index}`;
+
+            card.appendChild(qNumber);
+            card.appendChild(qText);
+            card.appendChild(optionsList);
+            card.appendChild(feedbackBox);
+            quizZone.appendChild(card);
+        });
+        updateProgressBar();
+    }
+
+    function selectOption(qIndex, oIndex, event) {
+        if (userAnswers[qIndex] !== null) return; // Sécurité si déjà cliqué
+
+        userAnswers[qIndex] = oIndex;
+        const question = questions[qIndex];
+        const isCorrect = (oIndex === question.a);
+        const cardEl = document.getElementById(`q-card-${qIndex}`);
+
+        question.o.forEach((_, i) => {
+            const optEl = document.getElementById(`opt-${qIndex}-${i}`);
+            optEl.classList.add('disabled');
+            if (i === question.a) optEl.classList.add('correct'); // La bonne s'allume en vert
+        });
+
+        const feedbackBox = document.getElementById(`feedback-${qIndex}`);
+        feedbackBox.style.display = 'block';
+
+        if (isCorrect) {
+            correctAnswersCount++;
+            currentStreak++;
+            if(currentStreak > maxStreak) maxStreak = currentStreak;
+
+            // Calcul du score dynamique avec bonus de combo
+            let bonus = currentStreak > 1 ? (currentStreak - 1) * 20 : 0;
+            let pointsGained = basePoints + bonus;
+            score += pointsGained;
+
+            updateScoreHUD();
+            showFloatingText(event.clientX, event.clientY, `+${pointsGained}`, "var(--success)");
+            triggerConfetti();
+
+            feedbackBox.classList.add('correct');
+            feedbackBox.innerHTML = `<strong>🎉 Excellent !</strong><br><em>${question.e}</em>`;
+        } else {
+            currentStreak = 0; // Combo brisé
+            updateScoreHUD();
+
+            document.getElementById(`opt-${qIndex}-${oIndex}`).classList.add('incorrect'); // La mauvaise s'allume en rouge
+            cardEl.classList.add('shake-animation'); // Tremblement physique de la carte
+            showFloatingText(event.clientX, event.clientY, "Oups!", "var(--danger)");
+
+            feedbackBox.classList.add('incorrect');
+            feedbackBox.innerHTML = `<strong>❌ Dommage !</strong> La bonne réponse était : <em>${question.o[question.a]}</em>.<br><br><strong>Rappel :</strong> ${question.e}`;
+        }
+
+        // Activation des boutons de transition
+        if (currentQuestionIndex < questions.length - 1) {
+            document.getElementById('next-btn').style.display = 'inline-block';
+        } else {
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('submit-btn').style.display = 'inline-block';
+        }
+    }
+
+    function updateScoreHUD() {
+        document.getElementById('score-display').innerText = score;
+        
+        const comboEl = document.getElementById('combo-display');
+        comboEl.innerText = `🔥 Combo: ${currentStreak}`;
+        
+        if(currentStreak > 1) {
+            comboEl.classList.add('combo-active');
+        } else {
+            comboEl.classList.remove('combo-active');
+        }
+    }
+
+    function showFloatingText(x, y, text, color) {
+        const floater = document.createElement('div');
+        floater.className = 'floating-score';
+        floater.innerText = text;
+        floater.style.left = `${x}px`;
+        floater.style.top = `${y}px`;
+        floater.style.color = color;
+        document.body.appendChild(floater);
+        setTimeout(() => floater.remove(), 1200);
+    }
+
+    function triggerConfetti() {
+        const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
+        for(let i = 0; i < 35; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.top = '-10px';
+            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            const duration = Math.random() * 1.5 + 1;
+            confetti.style.animationDuration = duration + 's';
+            if(Math.random() > 0.5) confetti.style.borderRadius = '50%';
+            
+            document.body.appendChild(confetti);
+            setTimeout(() => confetti.remove(), duration * 1000);
+        }
+    }
+
+    function nextQuestion() {
+        document.getElementById('next-btn').style.display = 'none';
+        const currentCard = document.getElementById(`q-card-${currentQuestionIndex}`);
+        currentCard.classList.remove('active');
+        currentCard.style.display = 'none';
+
+        currentQuestionIndex++;
+        
+        const nextCard = document.getElementById(`q-card-${currentQuestionIndex}`);
+        nextCard.style.display = 'block';
+        setTimeout(() => nextCard.classList.add('active'), 10);
+        
+        updateProgressBar();
+    }
+
+    function updateProgressBar() {
+        const percent = (currentQuestionIndex / questions.length) * 100;
+        document.getElementById('progress').style.width = `${percent}%`;
+    }
+
+    function showResults() {
+        document.querySelector('.hud').style.display = 'none';
+        document.getElementById('quiz-zone').style.display = 'none';
+        document.getElementById('quiz-controls').style.display = 'none';
+        document.querySelector('.progress-bar-container').style.display = 'none';
+        document.querySelector('header').style.display = 'none';
+
+        triggerConfetti();
+        triggerConfetti();
+
+        let displayScore = 0;
+        const scoreTarget = document.getElementById('final-score-display');
+        document.getElementById('result-screen').style.display = 'block';
+
+        const counterInterval = setInterval(() => {
+            displayScore += Math.ceil(score / 40);
+            if (displayScore >= score) {
+                displayScore = score;
+                clearInterval(counterInterval);
+            }
+            scoreTarget.innerText = displayScore + " pts";
+        }, 25);
+
+        document.getElementById('stats-text').innerHTML = `
+            Questions validées : <strong>${correctAnswersCount} / ${questions.length}</strong><br>
+            Taux de réussite : <strong>${Math.round((correctAnswersCount / questions.length) * 100)}%</strong><br>
+            Meilleur enchaînement : <strong>🔥 ${maxStreak} d'affilée</strong>
+        `;
+
+        const ratio = correctAnswersCount / questions.length;
+        let feedback = "";
+        if (ratio >= 0.8) feedback = "Légendaire ! Tu es parfaitement prêt pour l'examen ! 🚀";
+        else if (ratio >= 0.5) feedback = "Très bon score ! Tu as la moyenne, peaufine les détails. 💪";
+        else feedback = "Aïe... C'est insuffisant pour l'instant. Relis le cours et reviens te venger ! 📚";
+        
+        document.getElementById('feedback-text').innerText = feedback;
+    }
+
+    window.onload = buildQuiz;
+</script>
+
+</body>
+</html>
